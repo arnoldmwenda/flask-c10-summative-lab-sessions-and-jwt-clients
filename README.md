@@ -56,7 +56,7 @@ pipenv shell
 ```bash
 export FLASK_APP=app.py
 flask db init
-flask db migrate -m "initial migration"
+flask db migrate -m "initial migration users and notes"
 flask db upgrade
 ```
 
