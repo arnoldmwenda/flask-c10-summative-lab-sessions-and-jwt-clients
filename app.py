@@ -124,6 +124,46 @@ class NoteIndex(Resource):
 
         return note_schema.dump(new_note), 201
 
+class NoteById(Resource):
+    def patch(self, id):
+        user = current_user()
+        if not user:
+            return {"error": "Unauthorized"}, 401
+
+        note = Note.query.filter_by(id=id).first()
+        if not note:
+            return {"error": "Note not found"}, 404
+
+        if note.user_id != user.id:
+            return {"error": "Forbidden"}, 403
+
+        json_data = request.get_json() or {}
+        try:
+            data = note_schema.load(json_data, partial=True)
+        except ValidationError as err:
+            return err.messages, 422
+
+        for field, value in data.items():
+            setattr(note, field, value)
+
+        db.session.commit()
+        return note_schema.dump(note), 200
+
+    def delete(self, id):
+        user = current_user()
+        if not user:
+            return {"error": "Unauthorized"}, 401
+
+        note = Note.query.filter_by(id=id).first()
+        if not note:
+            return {"error": "Note not found"}, 404
+
+        if note.user_id != user.id:
+            return {"error": "Forbidden"}, 403
+
+        db.session.delete(note)
+        db.session.commit()
+        return {}, 204
 
 
 api.add_resource(Signup, "/signup")
@@ -132,7 +172,7 @@ api.add_resource(Logout, "/logout")
 api.add_resource(CheckSession, "/check_session")
 
 api.add_resource(NoteIndex, "/notes")
-
+api.add_resource(NoteById, "/notes/<int:id>")
 
 
 if __name__ == "__main__":
