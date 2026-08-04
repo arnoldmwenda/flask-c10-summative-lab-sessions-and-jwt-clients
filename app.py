@@ -82,6 +82,47 @@ class CheckSession(Resource):
         return {"error": "Not logged in"}, 401
 
 
+class NoteIndex(Resource):
+    def get(self):
+        user = current_user()
+        if not user:
+            return {"error": "Unauthorized"}, 401
+
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get("per_page", 5, type=int)
+
+        pagination = Note.query.filter_by(user_id=user.id).order_by(
+            Note.created_at.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
+
+        return {
+            "notes": notes_schema.dump(pagination.items),
+            "total": pagination.total,
+            "page": pagination.page,
+            "per_page": pagination.per_page,
+            "pages": pagination.pages,
+        }, 200
+
+    def post(self):
+        user = current_user()
+        if not user:
+            return {"error": "Unauthorized"}, 401
+
+        json_data = request.get_json() or {}
+        try:
+            data = note_schema.load(json_data)
+        except ValidationError as err:
+            return err.messages, 422
+
+        new_note = Note(
+            title=data["title"],
+            content=data["content"],
+            user_id=user.id,
+        )
+        db.session.add(new_note)
+        db.session.commit()
+
+        return note_schema.dump(new_note), 201
 
 
 
@@ -90,6 +131,7 @@ api.add_resource(Login, "/login")
 api.add_resource(Logout, "/logout")
 api.add_resource(CheckSession, "/check_session")
 
+api.add_resource(NoteIndex, "/notes")
 
 
 
